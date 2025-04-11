@@ -113,7 +113,7 @@ pip install PyQt6 websockets pynput mss pillow pyautogui requests
 
 MIT Lisansı  
 Geliştirici: **AISO ROBOTICS**  
-Destek ve iletişim: [e-mail](development@aisorobotics.com) | [web](https://www.aisorobotics.com)  
+Destek ve iletişim: [development@aisorobotics.com](mailto:development@aisorobotics.com) | [https://www.aisorobotics.com](https://www.aisorobotics.com)  
 
 ---
 
