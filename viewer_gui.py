@@ -33,7 +33,7 @@ class AsyncClient(QObject):
         self.scale_factor_x = 1
         self.scale_factor_y = 1
         self.server_ip = ""
-        self.server_port = "443"
+        self.server_port = "8443"
         self.use_ssl = True
         self.session_id = ""
         self.password = ""
@@ -164,7 +164,7 @@ class ViewerApp(QMainWindow):
         self.setup_client()
 
     def setup_ui(self):
-        self.setWindowTitle("Romotica İstemci v8.0 (Port 80/443 Desteği)")
+        self.setWindowTitle("Romotica İstemci v9.0")
         layout = QVBoxLayout()
         
         # Sunucu Bilgileri
@@ -179,7 +179,7 @@ class ViewerApp(QMainWindow):
         port_layout = QHBoxLayout()
         port_layout.addWidget(QLabel("Port:"))
         self.port_combo = QComboBox()
-        self.port_combo.addItems(["443 (HTTPS)", "80 (HTTP)"])
+        self.port_combo.addItems(["8443 (HTTPS)", "8080 (HTTP)", "8888 (Alternatif)"])
         port_layout.addWidget(self.port_combo)
         
         self.ssl_checkbox = QCheckBox("SSL Kullan")
@@ -274,7 +274,8 @@ class ViewerApp(QMainWindow):
             self.file_btn.setEnabled(False)
         else:
             server_ip = self.server_input.text().strip()
-            port = "443" if self.port_combo.currentText().startswith("443") else "80"
+            port_text = self.port_combo.currentText()
+            port = port_text.split()[0]
             use_ssl = self.ssl_checkbox.isChecked()
             session_id = self.id_input.text().strip()
             password = self.pass_input.text().strip()
@@ -396,16 +397,18 @@ class ViewerApp(QMainWindow):
         event.accept()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    
-    if sys.platform == 'darwin':
+    # High DPI ayarı için QApplication'den ÖNCE bu satırı ekleyin
+    if sys.platform == 'darwin':  # macOS için
         try:
-            app.setHighDpiScaleFactorRoundingPolicy(
+            from PyQt6.QtCore import Qt
+            QApplication.setHighDpiScaleFactorRoundingPolicy(
                 Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
             )
         except AttributeError:
             pass
     
+    # Sonra QApplication'i oluşturun
+    app = QApplication(sys.argv)
     window = ViewerApp()
     window.show()
     sys.exit(app.exec())
