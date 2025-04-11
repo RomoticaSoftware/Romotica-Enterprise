@@ -1,0 +1,3 @@
+# SSL sertifika ve anahtar dosyalarını hariç tut
+cert.pem
+key.pem
