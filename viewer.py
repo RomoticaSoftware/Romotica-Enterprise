@@ -12,7 +12,7 @@ class ScreenViewer:
         self.label.pack()
 
     async def update_screen(self):
-        uri = "ws://<AGENT_IP>:8765"
+        uri = "ws://<AGENT_IP>:8765"  # IP adresini buraya gir
         async with websockets.connect(uri) as websocket:
             while True:
                 data = await websocket.recv()

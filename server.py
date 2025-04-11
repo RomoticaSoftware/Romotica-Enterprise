@@ -4,21 +4,32 @@ import base64
 import io
 from mss import mss
 from PIL import Image
-import json
+
+# Çoklu istemci desteği için
+connected_clients = set()
 
 async def share_screen(websocket, path):
-    with mss() as sct:
-        while True:
-            screenshot = sct.grab(sct.monitors[1])
-            img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
-            buffer = io.BytesIO()
-            img.save(buffer, format="JPEG")
-            encoded = base64.b64encode(buffer.getvalue()).decode('utf-8')
-            await websocket.send(encoded)
-            await asyncio.sleep(0.2)
+    connected_clients.add(websocket)
+    try:
+        with mss() as sct:
+            while True:
+                screenshot = sct.grab(sct.monitors[1])
+                img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG")
+                encoded = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                # Tüm bağlı istemcilere ekran görüntüsünü gönder
+                for client in connected_clients:
+                    await client.send(encoded)
+                await asyncio.sleep(0.2)
+    except websockets.exceptions.ConnectionClosed:
+        print("Bağlantı kapandı.")
+    finally:
+        connected_clients.remove(websocket)
 
-start_server = websockets.serve(share_screen, "0.0.0.0", 8765)
+async def handle_clients():
+    async with websockets.serve(share_screen, "0.0.0.0", 8765):
+        await asyncio.Future()  # Sonsuz bekleme
 
-print("Agent çalışıyor. WebSocket 8765 portunda ekran gönderiyor...")
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+# Sunucu başlat
+asyncio.run(handle_clients())
