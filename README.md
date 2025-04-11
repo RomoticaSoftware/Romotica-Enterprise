@@ -1,123 +1,105 @@
-# Romotica
+# Romotica Enterprise Sürümü - Uzaktan Masaüstü Çözümü
 
-**Romotica**, güvenli ve modern bir uzak masaüstü paylaşım uygulamasıdır.  
-TeamViewer benzeri işlevsellik sunar ve tamamen Python ile geliştirilmiştir.
-
----
-
-## 🚀 Özellikler
-
-- 🖥 Gerçek zamanlı ekran paylaşımı (Sunucudan istemciye)
-- 🖱 Uzak fare ve klavye kontrolü (İstemciden sunucuya)
-- 📁 Dosya transferi (İstemciden sunucuya)
-- 🔐 SSL/TLS destekli şifreli bağlantı (self-signed sertifika)
-- 🖼 PyQt6 tabanlı modern grafik arayüz (GUI)
-- 🪵 Canlı log görüntüleme ve `.log` dosyasına otomatik kayıt
-- 🔄 Asenkron yapı sayesinde akıcı deneyim (asyncio)
-- 🧪 Çoklu istemci desteği (ilk test aşamasında)
-- ⚙️ Çözünürlük ve kalite ayarları (HD, Full HD, 2K, 4K)
-- 🔢 FPS takibi ve performans optimizasyonu
+## 1. Genel Bakış
+Romotica Enterprise, kurumsal ihtiyaçlara özel geliştirilmiş, yüksek güvenlikli ve ölçeklenebilir bir uzaktan masaüstü çözümüdür. Klasik IP/Port gereksinimlerini ortadan kaldırarak, sadece ID ve şifre ile internet üzerinden otomatik bağlantı sağlar.
 
 ---
 
-## 📁 Yapı
+## 2. Temel Özellikler
 
-### 🖥 `server_gui.py`
-- Sunucu tarafı ekran görüntüsü paylaşır
-- SSL bağlantısı ile istemcileri dinler
-- Gelen kontrol olaylarını işler (mouse/klavye/dosya)
-- Otomatik sertifika oluşturur (ilk çalıştırmada)
-- GUI üzerinden başlatılır, durdurulur, log takip edilir
-- Oturum ID ve şifre oluşturur
-- Çözünürlük ve sıkıştırma ayarları sunar
+### A) Otomatik Bağlantı Sistemi
+- **IP/Port gerekmez** – Sunucu ve istemci otomatik bulunur.
+- **NAS/Arkadaki Cihazlara Uyum**:
+  - UDP Hole Punching (çoğu NAT için)
+  - STUN/TURN sunucuları (sıkı güvenlik duvarları için)
+  - Port 443 (HTTPS) üzerinden şifreli iletişim.
 
-### 🖥 `viewer_gui.py`
-- Sunucuya bağlanarak ekran görüntüsünü canlı alır
-- Klavye ve fare hareketlerini gönderir
-- Dosya transferi yapar
-- GUI üzerinden IP girilir, bağlantı sağlanır, loglar izlenir
-- FPS takibi yapar
-- Bağlantı bilgilerini panoya kopyalar
+### B) Kurumsal Güvenlik
 
----
+| Özellik                | Açıklama                                  |
+|------------------------|-------------------------------------------|
+| **Uçtan Uca Şifreleme**| TLS 1.3 + AES-256                         |
+| **DDoS Koruması**      | Cloudflare + Anormal Trafik Engelleme     |
+| **Brute-Force Önleme** | IP Bazlı Kısıtlama + Şifre Deneme Sınırı  |
+| **Oturum Güvenliği**   | Tek Kullanımlık Token (OTP) Desteği       |
+| **Denetim Kayıtları**  | Tüm bağlantılar loglanır                  |
 
-## 🔧 Gereksinimler
-
-```bash
-pip install PyQt6 websockets pynput mss pillow pyautogui requests
-```
-
-> **Notlar:**
-> - `pyobjc` macOS sistemleri için otomatik yüklenir. Ek izinler gerekebilir.
-> - İlk çalıştırmada SSL sertifikası otomatik oluşturulur.
-> - Windows'ta `pyautogui` için ek izinler gerekebilir.
+### C) Yüksek Erişilebilirlik
+- **Otomatik Ölçeklendirme**: Sunucular yüke göre genişler.
+- **Küresel TURN Sunucuları**: Düşük gecikme süresi.
+- **Yedekli Veritabanı**: PostgreSQL çoklu replika.
 
 ---
 
-## 🧪 Kullanım
+## 3. Kurulum ve Kullanım
 
 ### Sunucu Tarafı
-1. `python3 server_gui.py` komutu ile sunucuyu başlatın
-2. Port ve SSL ayarlarını yapın (varsayılan: 8443 + SSL aktif)
-3. "Sunucuyu Başlat" butonuna basın
-4. Oluşturulan bağlantı bilgilerini (ID, şifre, IP) kopyalayın
+1. `python3 server_gui.py` çalıştırın.
+2. "Yeni Oturum Oluştur" butonuna basın.
+3. Sistem otomatik olarak **ID** ve **şifre** üretecek.
 
 ### İstemci Tarafı
-1. `python3 viewer_gui.py` komutu ile istemciyi başlatın
-2. Sunucu IP'sini girin (aynı makinede `localhost`)
-3. Port ve SSL ayarlarını sunucuyla aynı yapın
-4. Sunucudan aldığınız ID ve şifreyi girin
-5. "Bağlan" butonuna basın
-
-### Ortak İşlemler
-- Fare hareketleri ve tıklamaları otomatik aktarılır
-- Klavye metin kutusuna yazıp Enter'a basarak metin gönderin
-- "Dosya Gönder" butonu ile dosya transferi yapın
-- Sunucu tarafında logları takip edin
+1. `python3 viewer_gui.py` çalıştırın.
+2. Sunucudan aldığınız **ID** ve **şifreyi** girin.
+3. "Bağlan" butonuna basın → Sistem otomatik sunucuyu bulacak.
 
 ---
 
-## 🛠 Sorun Giderme
+## 4. Teknik Altyapı
 
-### Bağlantı Sorunları
-- **"nodename nor servname provided" hatası:** IP adresini kontrol edin (localhost veya doğru IP)
-- **SSL sertifika hatası:** Sunucu ve istemcide SSL ayarlarını eşleştirin
-- **Port kullanımda hatası:** Farklı bir port seçin veya mevcut bağlantıyı kapatın
-
-### Performans Sorunları
-- Çözünürlüğü düşürün (HD -> Full HD gibi)
-- Sıkıştırma formatını değiştirin (WEBP -> JPEG)
-- Kalite ayarını düşürün (90 -> 70)
-
-### Diğer Sorunlar
-- Firewall'u kontrol edin (gerekli portları açın)
-- Python sürümünün 3.7+ olduğundan emin olun
-- Tüm bağımlılıkların yüklü olduğunu kontrol edin
+| Bileşen                | Teknoloji                  | Açıklama                         |
+|------------------------|----------------------------|----------------------------------|
+| **Bulma Sunucusu**     | FastAPI + Redis            | Oturum yönetimi ve NAT geçişi    |
+| **İletişim Sunucusu**  | WebSockets                 | Gerçek zamanlı veri aktarımı     |
+| **Yük Dengeleme**      | NGINX + Kubernetes         | Trafiği eşit dağıtır             |
+| **Güvenlik Katmanı**   | Cloudflare Enterprise      | DDoS koruma ve SSL terminasyonu  |
 
 ---
 
-## 📦 Planlanan Özellikler
+## 5. Kurumsal Dağıtım Seçenekleri
 
-- [x] Dosya transferi (v9.0 ile eklendi)
-- [ ] QR kod ile bağlantı paylaşımı
-- [ ] Şifreli oturum / bağlantı kodu
-- [ ] Mobil istemci desteği (Android/iOS)
-- [ ] PyInstaller ile `.exe` / `.app` paketleme
-- [ ] Ses aktarımı desteği
-- [ ] Çoklu monitör desteği
-- [ ] Oturum kayıtları (session recording)
+| Seçenek                     | Avantajlar                            | Dezavantajlar           |
+|-----------------------------|---------------------------------------|-------------------------|
+| **Şirket İçi (On-Premise)** | Veri kontrolü, Yerel ağ optimizasyonu | Bakım maliyeti          |
+| **Bulut (AWS/GCP)**         | Otomatik ölçeklendirme, Yedeklilik    | Aylık maliyet           |
+| **Hibrit**                  | Esneklik                              | Karmaşık yapılandırma   |
 
 ---
 
-## 📄 Lisans
+## 6. Maliyet Tahmini (Aylık)
 
-MIT Lisansı  
-Geliştirici: **AISO ROBOTICS**  
-Destek ve iletişim: [development@aisorobotics.com](mailto:development@aisorobotics.com) | [https://www.aisorobotics.com](https://www.aisorobotics.com)  
+| Bileşen                       | Tahmini Maliyet  |
+|-------------------------------|------------------|
+| **Bulut Sunucular (2x EC2)**  | $200             |
+| **Küresel TURN Sunucuları**   | $300             |
+| **Cloudflare Enterprise**     | $500             |
+| **Toplam**                    | $1,000           |
 
 ---
 
-✨ **Katkıda Bulunma**  
-Hata raporları ve özellik istekleri için iletişim bilgilerini kullanabilirsiniz.
+## 7. Sonraki Adımlar
+- **Test Ortamı Kurulumu** (Demo sunucu hazırlama)
+- **Güvenlik Testleri** (Sızma testleri)
+- **Pilot Kullanım** (Şirket içi deneme)
 
-**Not:** Bu proje ticari kullanımlar için geliştirilmiştir. Ek güvenlik önlemleri alınacaktır.
+---
+
+## 8. Lisans ve İletişim
+- **Lisans**: GNU GENERAL PUBLIC LICENSE
+- **Geliştirici**: AISOROBOTICS
+- **Destek**: development@aisorobotics.com
+
+---
+
+✨ **Katkı ve Destek**  
+Sorularınız için iletişim bilgilerimizi kullanabilirsiniz.
+
+**Not**: Bu sürüm, ticari kullanım için optimize edilmiştir. Ek güvenlik önlemleri otomatik uygulanır.
+
+---
+
+## İndirme Bağlantısı:
+- **Romotica Enterprise Full Paket (ZIP)**
+- **Kurulum Kılavuzu (PDF)**
+
+*Not*: Yukarıdaki bağlantılar örnektir. Gerçek dağıtım için özel bir URL sağlanacaktır.
