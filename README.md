@@ -1,4 +1,4 @@
-# Romotica Enterprise Sürümü - Uzaktan Masaüstü Çözümü
+# Romotica Enterprise - Uzaktan Masaüstü Çözümü
 
 ## 1. Genel Bakış
 Romotica Enterprise, kurumsal ihtiyaçlara özel geliştirilmiş, yüksek güvenlikli ve ölçeklenebilir bir uzaktan masaüstü çözümüdür. Klasik IP/Port gereksinimlerini ortadan kaldırarak, sadece ID ve şifre ile internet üzerinden otomatik bağlantı sağlar.
