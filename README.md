@@ -34,12 +34,12 @@ Romotica Enterprise, kurumsal ihtiyaçlara özel geliştirilmiş, yüksek güven
 ## 3. Kurulum ve Kullanım
 
 ### Sunucu Tarafı
-1. `python3 server_gui.py` çalıştırın.
+1. `Sunucu.exe` çalıştırın.
 2. "Yeni Oturum Oluştur" butonuna basın.
 3. Sistem otomatik olarak **ID** ve **şifre** üretecek.
 
 ### İstemci Tarafı
-1. `python3 viewer_gui.py` çalıştırın.
+1. `İstemci.exe` çalıştırın.
 2. Sunucudan aldığınız **ID** ve **şifreyi** girin.
 3. "Bağlan" butonuna basın → Sistem otomatik sunucuyu bulacak.
 
