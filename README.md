@@ -33,7 +33,7 @@ Kurumsal kullanıma özel bu sürüm, güvenlik protokolleri ve sistem optimizas
 | **Brute-Force Önleme**         | IP Bazlı Kısıtlama + Şifre Deneme Sınırı  |
 | **Oturum Güvenliği**           | Tek Kullanımlık Token (OTP) Desteği       |
 | **Denetim Kayıtları**          | Tüm bağlantılar loglanır                  |
-| 🛡️ **Askeri Grade Şifreleme**  |                                           |
+| 🛡️ **Askeri Grade Şifreleme**  | Askeri Grade Private Şifreleme            |
 | 🌐 **Global Altyapı**          | 5 kıtada TURN sunucuları                  |
 | 📊 **Gerçek Zamanlı Analiz**   | Bağlantı kalitesi takibi                  |
 
