@@ -1,3 +1,4 @@
+# viewer_gui.py
 import sys
 import asyncio
 import base64
@@ -8,7 +9,8 @@ import json
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, 
                             QPushButton, QVBoxLayout, QWidget, QComboBox,
-                            QHBoxLayout, QFileDialog, QMessageBox, QCheckBox)
+                            QHBoxLayout, QFileDialog, QMessageBox, QCheckBox,
+                            QProgressBar)
 from PyQt6.QtGui import QPixmap, QImage, QCursor
 from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, Qt
 from PIL import Image
@@ -21,53 +23,74 @@ class AsyncClient(QObject):
     image_received = pyqtSignal(bytes)
     status_changed = pyqtSignal(str)
     fps_updated = pyqtSignal(float)
+    latency_updated = pyqtSignal(int)
     auth_result = pyqtSignal(bool)
     
     def __init__(self):
         super().__init__()
         self.websocket = None
+        self.discovery_ws = None
         self.is_connected = False
         self.is_authenticated = False
         self.loop = asyncio.new_event_loop()
         self.last_frame_time = time.time()
         self.scale_factor_x = 1
         self.scale_factor_y = 1
-        self.server_ip = ""
-        self.server_port = "8443"
-        self.use_ssl = True
         self.session_id = ""
         self.password = ""
+        self.server_info = {}
 
     def start_loop(self):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
 
-    async def connect(self, server_ip, server_port, use_ssl, session_id, password):
+    async def connect_to_discovery(self):
         try:
-            self.status_changed.emit("Bağlanıyor...")
-            self.server_ip = server_ip
-            self.server_port = server_port
-            self.use_ssl = use_ssl
-            self.session_id = session_id
-            self.password = password
+            self.discovery_ws = await websockets.connect(
+                "wss://discovery.romotica.com:443",
+                ssl=True,
+                ping_interval=20,
+                ping_timeout=40
+            )
+            await self.discovery_ws.send(json.dumps({
+                'type': 'connect',
+                'server_id': self.session_id,
+                'password': self.password
+            }))
+            response = await self.discovery_ws.recv()
+            self.server_info = json.loads(response)
             
-            protocol = "wss" if self.use_ssl else "ws"
-            uri = f"{protocol}://{self.server_ip}:{self.server_port}"
+            if 'error' in self.server_info:
+                self.status_changed.emit(f"Hata: {self.server_info['error']}")
+                self.auth_result.emit(False)
+                return False
+            
+            return True
+        except Exception as e:
+            self.status_changed.emit(f"Discovery hatası: {str(e)}")
+            return False
+
+    async def connect_to_server(self):
+        try:
+            if not await self.connect_to_discovery():
+                return
+                
+            self.status_changed.emit("Sunucuya bağlanıyor...")
+            protocol = "wss" if self.server_info.get('ssl', True) else "ws"
+            uri = f"{protocol}://{self.server_info['ip']}:{self.server_info['port']}"
             
             self.websocket = await websockets.connect(
                 uri,
+                ssl=True if protocol == "wss" else None,
                 ping_interval=20,
                 ping_timeout=40,
-                close_timeout=1,
-                max_size=100 * 1024 * 1024,
-                ssl=None if not self.use_ssl else True
+                max_size=100 * 1024 * 1024
             )
             
-            auth_data = {
+            await self.websocket.send(json.dumps({
                 'session_id': self.session_id,
                 'password': self.password
-            }
-            await self.websocket.send(json.dumps(auth_data))
+            }))
             
             response = await asyncio.wait_for(self.websocket.recv(), timeout=10)
             response_data = json.loads(response)
@@ -88,6 +111,8 @@ class AsyncClient(QObject):
                             fps = 1 / (current_time - self.last_frame_time)
                             self.last_frame_time = current_time
                             self.fps_updated.emit(fps)
+                            if 'latency' in data:
+                                self.latency_updated.emit(data['latency'])
                             self.image_received.emit(data['data'].encode('utf-8'))
                             
                     except websockets.exceptions.ConnectionClosed as e:
@@ -113,14 +138,16 @@ class AsyncClient(QObject):
             self.is_authenticated = False
             if self.websocket:
                 await self.websocket.close()
+            if self.discovery_ws:
+                await self.discovery_ws.close()
             self.status_changed.emit("Bağlantı kesildi")
 
     async def send_mouse_event(self, x, y, click=False):
         if self.is_authenticated:
             message = {
                 'type': 'mouse',
-                'x': int(x),
-                'y': int(y),
+                'x': int(x / self.scale_factor_x),
+                'y': int(y / self.scale_factor_y),
                 'click': click
             }
             await self.websocket.send(json.dumps(message))
@@ -153,6 +180,8 @@ class AsyncClient(QObject):
     async def disconnect(self):
         if self.websocket:
             await self.websocket.close()
+        if self.discovery_ws:
+            await self.discovery_ws.close()
         self.is_connected = False
         self.is_authenticated = False
 
@@ -164,34 +193,14 @@ class ViewerApp(QMainWindow):
         self.setup_client()
 
     def setup_ui(self):
-        self.setWindowTitle("Romotica İstemci v9.0")
+        self.setWindowTitle("Romotica Enterprise İstemci")
         layout = QVBoxLayout()
-        
-        # Sunucu Bilgileri
-        server_layout = QHBoxLayout()
-        server_layout.addWidget(QLabel("Sunucu IP/Domain:"))
-        self.server_input = QLineEdit()
-        self.server_input.setPlaceholderText("örn: example.com veya 123.123.123.123")
-        server_layout.addWidget(self.server_input)
-        layout.addLayout(server_layout)
-        
-        # Port ve SSL Ayarları
-        port_layout = QHBoxLayout()
-        port_layout.addWidget(QLabel("Port:"))
-        self.port_combo = QComboBox()
-        self.port_combo.addItems(["8443 (HTTPS)", "8080 (HTTP)", "8888 (Alternatif)"])
-        port_layout.addWidget(self.port_combo)
-        
-        self.ssl_checkbox = QCheckBox("SSL Kullan")
-        self.ssl_checkbox.setChecked(True)
-        port_layout.addWidget(self.ssl_checkbox)
-        layout.addLayout(port_layout)
         
         # Kimlik Bilgileri
         auth_layout = QHBoxLayout()
-        auth_layout.addWidget(QLabel("Session ID:"))
+        auth_layout.addWidget(QLabel("Sunucu ID:"))
         self.id_input = QLineEdit()
-        self.id_input.setPlaceholderText("9 haneli ID")
+        self.id_input.setPlaceholderText("SRV_XXXX formatında")
         auth_layout.addWidget(self.id_input)
         layout.addLayout(auth_layout)
         
@@ -208,17 +217,22 @@ class ViewerApp(QMainWindow):
         self.connect_btn.clicked.connect(self.toggle_connection)
         layout.addWidget(self.connect_btn)
         
-        # Durum Bilgisi
+        # Performans Bilgileri
+        perf_layout = QHBoxLayout()
         self.status_label = QLabel("Durum: Bağlantı yok")
-        layout.addWidget(self.status_label)
+        perf_layout.addWidget(self.status_label)
         
         self.fps_label = QLabel("FPS: -")
-        layout.addWidget(self.fps_label)
+        perf_layout.addWidget(self.fps_label)
+        
+        self.latency_label = QLabel("Gecikme: - ms")
+        perf_layout.addWidget(self.latency_label)
+        layout.addLayout(perf_layout)
         
         # Görüntü Alanı
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setFixedSize(800, 450)
+        self.image_label.setFixedSize(1024, 576)
         self.image_label.setStyleSheet("background-color: black;")
         self.image_label.setMouseTracking(True)
         layout.addWidget(self.image_label)
@@ -248,6 +262,7 @@ class ViewerApp(QMainWindow):
         self.client.image_received.connect(self.update_image)
         self.client.status_changed.connect(self.update_status)
         self.client.fps_updated.connect(self.update_fps)
+        self.client.latency_updated.connect(self.update_latency)
         self.client.auth_result.connect(self.handle_auth_result)
         self.thread.started.connect(self.client.start_loop)
         self.thread.start()
@@ -260,7 +275,6 @@ class ViewerApp(QMainWindow):
         else:
             self.connect_btn.setEnabled(True)
             self.connect_btn.setText("Bağlan")
-            QMessageBox.warning(self, "Hata", "Kimlik doğrulama başarısız!")
 
     def toggle_connection(self):
         self.connect_btn.setEnabled(False)
@@ -273,21 +287,19 @@ class ViewerApp(QMainWindow):
             self.connect_btn.setText("Bağlan")
             self.file_btn.setEnabled(False)
         else:
-            server_ip = self.server_input.text().strip()
-            port_text = self.port_combo.currentText()
-            port = port_text.split()[0]
-            use_ssl = self.ssl_checkbox.isChecked()
             session_id = self.id_input.text().strip()
             password = self.pass_input.text().strip()
             
-            if not (server_ip and session_id and password):
+            if not (session_id and password):
                 QMessageBox.warning(self, "Hata", "Tüm alanları doldurun!")
                 self.connect_btn.setEnabled(True)
                 return
                 
+            self.client.session_id = session_id
+            self.client.password = password
             self.connect_btn.setText("Bağlanıyor...")
             asyncio.run_coroutine_threadsafe(
-                self.client.connect(server_ip, port, use_ssl, session_id, password),
+                self.client.connect_to_server(),
                 self.client.loop
             )
 
@@ -323,8 +335,8 @@ class ViewerApp(QMainWindow):
 
     def mouseMoveEvent(self, event):
         if self.client.is_authenticated and self.image_label.underMouse():
-            x = event.position().x() * self.scale_factor_x
-            y = event.position().y() * self.scale_factor_y
+            x = event.position().x()
+            y = event.position().y()
             asyncio.run_coroutine_threadsafe(
                 self.client.send_mouse_event(x, y),
                 self.client.loop
@@ -335,8 +347,8 @@ class ViewerApp(QMainWindow):
             self.client.is_authenticated and 
             self.image_label.underMouse()):
             
-            x = event.position().x() * self.scale_factor_x
-            y = event.position().y() * self.scale_factor_y
+            x = event.position().x()
+            y = event.position().y()
             asyncio.run_coroutine_threadsafe(
                 self.client.send_mouse_event(x, y, True),
                 self.client.loop
@@ -350,14 +362,18 @@ class ViewerApp(QMainWindow):
     def update_fps(self, fps):
         self.fps_label.setText(f"FPS: {fps:.1f}")
 
+    @pyqtSlot(int)
+    def update_latency(self, latency):
+        self.latency_label.setText(f"Gecikme: {latency} ms")
+
     @pyqtSlot(bytes)
     def update_image(self, data):
         try:
             img_data = base64.b64decode(data)
             image = Image.open(io.BytesIO(img_data))
             
-            self.scale_factor_x = image.width / self.image_label.width()
-            self.scale_factor_y = image.height / self.image_label.height()
+            self.client.scale_factor_x = image.width / self.image_label.width()
+            self.client.scale_factor_y = image.height / self.image_label.height()
             
             if image.mode == "RGB":
                 qformat = QImage.Format.Format_RGB888
@@ -397,8 +413,7 @@ class ViewerApp(QMainWindow):
         event.accept()
 
 if __name__ == "__main__":
-    # High DPI ayarı için QApplication'den ÖNCE bu satırı ekleyin
-    if sys.platform == 'darwin':  # macOS için
+    if sys.platform == 'darwin':
         try:
             from PyQt6.QtCore import Qt
             QApplication.setHighDpiScaleFactorRoundingPolicy(
@@ -407,7 +422,6 @@ if __name__ == "__main__":
         except AttributeError:
             pass
     
-    # Sonra QApplication'i oluşturun
     app = QApplication(sys.argv)
     window = ViewerApp()
     window.show()

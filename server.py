@@ -1,3 +1,4 @@
+# server_gui.py
 import sys
 import asyncio
 import base64
@@ -10,11 +11,12 @@ import hashlib
 import secrets
 import ssl
 import socket
+import requests
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
                             QTextEdit, QLabel, QLineEdit, QVBoxLayout, 
                             QWidget, QComboBox, QHBoxLayout, QFileDialog,
                             QCheckBox)
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
 from mss import mss
 from PIL import Image
 import websockets
@@ -25,6 +27,7 @@ logger = logging.getLogger('server')
 
 class WebSocketServer(QThread):
     log_signal = pyqtSignal(str)
+    connection_signal = pyqtSignal(int)
     
     def __init__(self, port, quality, resolution, compression, use_ssl=False):
         super().__init__()
@@ -35,10 +38,10 @@ class WebSocketServer(QThread):
         self.use_ssl = use_ssl
         self.clients = set()
         self.running = False
-        self.last_image_hash = None
-        self.session_id = f"{secrets.randbelow(900000000) + 100000000}"
-        self.session_password = secrets.token_urlsafe(8)
+        self.session_id = f"SRV_{secrets.token_hex(4).upper()}"
+        self.session_password = secrets.token_urlsafe(12)
         self.authenticated_clients = set()
+        self.discovery_ws = None
         self.resolution_map = {
             "HD (1280x720)": (1280, 720),
             "Full HD (1920x1080)": (1920, 1080),
@@ -47,12 +50,31 @@ class WebSocketServer(QThread):
             "Ekran Çözünürlüğü": None
         }
 
-    def is_port_in_use(self, port):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('localhost', port)) == 0
+    async def register_with_discovery(self):
+        try:
+            self.discovery_ws = await websockets.connect(
+                "wss://127.0.0.1:8443",     # "wss://discovery.romotica.com:443", kodun  orjinali  bu olacak siteyi  yapınca
+                ssl=True,
+                ping_interval=20,
+                ping_timeout=40
+            )
+            await self.discovery_ws.send(json.dumps({
+                'type': 'register',
+                'server_id': self.session_id,
+                'password': self.session_password,
+                'public_ip': await self.get_public_ip(),
+                'port': self.port,
+                'ssl': self.use_ssl
+            }))
+            response = await self.discovery_ws.recv()
+            return json.loads(response).get('status') == 'registered'
+        except Exception as e:
+            self.log_signal.emit(f"Discovery error: {str(e)}")
+            return False
 
     async def handle_client(self, websocket, path):
         self.clients.add(websocket)
+        self.connection_signal.emit(len(self.clients))
         remote_addr = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
         logger.info(f"Yeni bağlantı: {remote_addr}")
         self.log_signal.emit(f"Yeni bağlantı: {remote_addr}")
@@ -64,7 +86,11 @@ class WebSocketServer(QThread):
             if (auth_info.get('session_id') == self.session_id and 
                 auth_info.get('password') == self.session_password):
                 self.authenticated_clients.add(websocket)
-                await websocket.send(json.dumps({'status': 'authenticated'}))
+                await websocket.send(json.dumps({
+                    'status': 'authenticated',
+                    'resolution': self.resolution,
+                    'fps_limit': 30
+                }))
                 self.log_signal.emit(f"İstemci doğrulandı: {remote_addr}")
             else:
                 await websocket.send(json.dumps({'status': 'authentication_failed'}))
@@ -93,12 +119,15 @@ class WebSocketServer(QThread):
                             
                             elif data.get('type') == 'file':
                                 file_data = base64.b64decode(data['content'])
-                                with open(data['name'], 'wb') as f:
+                                filepath = os.path.join("received_files", data['name'])
+                                os.makedirs("received_files", exist_ok=True)
+                                with open(filepath, 'wb') as f:
                                     f.write(file_data)
                                 self.log_signal.emit(f"Dosya alındı: {data['name']}")
                         except asyncio.TimeoutError:
                             pass
                         
+                        start_time = time.time()
                         screenshot = sct.grab(monitor)
                         img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
                         
@@ -111,7 +140,8 @@ class WebSocketServer(QThread):
                         
                         await websocket.send(json.dumps({
                             'type': 'screen',
-                            'data': encoded
+                            'data': encoded,
+                            'latency': int((time.time() - start_time)*1000)
                         }))
                         
                     except Exception as e:
@@ -125,6 +155,8 @@ class WebSocketServer(QThread):
         finally:
             self.clients.discard(websocket)
             self.authenticated_clients.discard(websocket)
+            self.connection_signal.emit(len(self.clients))
+            self.log_signal.emit(f"Bağlantı sonlandı: {remote_addr}")
 
     async def run_server(self):
         self.running = True
@@ -138,8 +170,8 @@ class WebSocketServer(QThread):
             ssl_context.load_cert_chain('cert.pem', 'key.pem')
 
         try:
-            if self.is_port_in_use(self.port):
-                raise OSError(f"Port {self.port} zaten kullanımda!")
+            if not await self.register_with_discovery():
+                raise ConnectionError("Discovery sunucusuna bağlanılamadı")
                 
             async with websockets.serve(
                 self.handle_client,
@@ -150,30 +182,26 @@ class WebSocketServer(QThread):
                 ping_timeout=40,
                 max_size=100 * 1024 * 1024
             ):
-                public_ip = self.get_public_ip()
-                protocol = "wss" if self.use_ssl else "ws"
                 self.log_signal.emit(
                     f"Sunucu başlatıldı!\n"
-                    f"Bağlantı URL: {protocol}://{public_ip}:{self.port}\n"
                     f"Session ID: {self.session_id}\n"
                     f"Şifre: {self.session_password}\n\n"
                     f"İstemcinin bağlanabilmesi için bu bilgileri paylaşın"
                 )
                 while self.running:
                     await asyncio.sleep(1)
-        except OSError as e:
-            self.log_signal.emit(f"HATA: {str(e)}")
-            logger.error(f"Sunucu hatası: {str(e)}")
         except Exception as e:
-            self.log_signal.emit(f"Kritik HATA: {str(e)}")
-            logger.error(f"Kritik hata: {str(e)}")
+            self.log_signal.emit(f"Sunucu hatası: {str(e)}")
+            logger.error(f"Sunucu hatası: {str(e)}")
+        finally:
+            if self.discovery_ws:
+                await self.discovery_ws.close()
 
-    def get_public_ip(self):
+    async def get_public_ip(self):
         try:
-            import requests
-            return requests.get('https://api.ipify.org').text
+            return (await asyncio.to_thread(requests.get, 'https://api.ipify.org')).text
         except:
-            return "Dinamik IP"
+            return "0.0.0.0"
 
     def run(self):
         asyncio.run(self.run_server())
@@ -181,24 +209,21 @@ class WebSocketServer(QThread):
 class ServerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setup_ui()
         self.server = None
+        self.setup_ui()
 
     def setup_ui(self):
-        self.setWindowTitle("Romotica Sunucu v9.0")
+        self.setWindowTitle("Romotica Enterprise Sunucu")
         layout = QVBoxLayout()
         
-        # Port Seçimi
-        port_layout = QHBoxLayout()
-        port_layout.addWidget(QLabel("Port:"))
-        self.port_combo = QComboBox()
-        self.port_combo.addItems(["8080 (HTTP)", "8443 (HTTPS)", "8888 (Alternatif)"])
-        port_layout.addWidget(self.port_combo)
+        # Bağlantı Bilgileri
+        self.info_label = QLabel("Sunucu başlatıldığında bağlantı bilgileri burada görünecek")
+        self.info_label.setWordWrap(True)
+        layout.addWidget(self.info_label)
         
-        self.ssl_checkbox = QCheckBox("SSL Kullan")
-        self.ssl_checkbox.setChecked(True)
-        port_layout.addWidget(self.ssl_checkbox)
-        layout.addLayout(port_layout)
+        # Bağlantı Sayacı
+        self.connection_label = QLabel("Aktif Bağlantı: 0")
+        layout.addWidget(self.connection_label)
         
         # Görüntü Ayarları
         settings_layout = QHBoxLayout()
@@ -227,10 +252,10 @@ class ServerGUI(QMainWindow):
         settings_layout.addWidget(self.compression_combo)
         layout.addLayout(settings_layout)
         
-        # Bağlantı Bilgileri
-        self.info_label = QLabel("Sunucu başlatıldığında bağlantı bilgileri burada görünecek")
-        self.info_label.setWordWrap(True)
-        layout.addWidget(self.info_label)
+        # SSL Ayarları
+        self.ssl_checkbox = QCheckBox("SSL Kullan (Önerilir)")
+        self.ssl_checkbox.setChecked(True)
+        layout.addWidget(self.ssl_checkbox)
         
         # Log Alanı
         self.log_area = QTextEdit()
@@ -239,7 +264,7 @@ class ServerGUI(QMainWindow):
         
         # Kontrol Butonları
         button_layout = QHBoxLayout()
-        self.start_btn = QPushButton("Başlat")
+        self.start_btn = QPushButton("Sunucuyu Başlat")
         self.start_btn.clicked.connect(self.start_server)
         button_layout.addWidget(self.start_btn)
         
@@ -259,16 +284,14 @@ class ServerGUI(QMainWindow):
         self.setCentralWidget(container)
 
     def start_server(self):
-        port_text = self.port_combo.currentText()
-        port = int(port_text.split()[0])
-        use_ssl = self.ssl_checkbox.isChecked()
-        quality_map = {"Yüksek (90)": 90, "Orta (70)": 70, "Düşük (50)": 50}
-        quality = quality_map[self.quality_combo.currentText()]
         resolution = self.resolution_combo.currentText()
+        quality = {"Yüksek (90)": 90, "Orta (70)": 70, "Düşük (50)": 50}[self.quality_combo.currentText()]
         compression = self.compression_combo.currentText()
+        use_ssl = self.ssl_checkbox.isChecked()
         
-        self.server = WebSocketServer(port, quality, resolution, compression, use_ssl)
+        self.server = WebSocketServer(443, quality, resolution, compression, use_ssl)
         self.server.log_signal.connect(self.log_area.append)
+        self.server.connection_signal.connect(lambda count: self.connection_label.setText(f"Aktif Bağlantı: {count}"))
         self.server.start()
         
         self.start_btn.setEnabled(False)
@@ -283,7 +306,6 @@ class ServerGUI(QMainWindow):
             self.start_btn.setEnabled(True)
             self.stop_btn.setEnabled(False)
             self.copy_btn.setEnabled(False)
-            self.info_label.setText("Sunucu durduruldu")
             self.log_area.append("Sunucu durduruldu")
 
     def copy_credentials(self):
