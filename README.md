@@ -95,10 +95,14 @@ Kurumsal kullanıma özel bu sürüm, güvenlik protokolleri ve sistem optimizas
 
 ✨ **Ticari Lisans Uyarısı**  
 
-**© Ticari patentli ürün. İzinsiz paylaşım ve kullanım yasaktır.**: 
-Bu yazılım ticari amaçlı olup özel patentle korunmaktadır. İzinsiz kopyalanması, çoğaltılması, dağıtılması veya değiştirilmesi yasaktır. Tüm hakları saklıdır.
-Tescilli ticari yazılımdır. Lisanssız kullanım ve reverse engineering işlemleri 5846 sayılı Fikir ve Sanat Eserleri Kanunu'na göre yasal işleme tabidir.
-Lisans anlaşmasını kabul etmeden kullanımı yasaktır. İhlaller hukuki yaptırımla sonuçlanır.
+**© Ticari patentli ürün. İzinsiz paylaşım ve kullanım yasaktır.**
+
+Bu yazılım ticari amaçlı olup özel patentle korunmaktadır. 
+İzinsiz kopyalanması, çoğaltılması, dağıtılması veya değiştirilmesi yasaktır. Tüm hakları saklıdır.
+Tescilli ticari yazılımdır. 
+Lisanssız kullanım ve reverse engineering işlemleri 5846 sayılı Fikir ve Sanat Eserleri Kanunu'na göre yasal işleme tabidir.
+Lisans anlaşmasını kabul etmeden kullanımı yasaktır. 
+İhlaller hukuki yaptırımla sonuçlanır.
 ---
 
 ## İndirme Bağlantısı:
