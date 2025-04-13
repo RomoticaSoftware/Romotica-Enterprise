@@ -1,8 +1,10 @@
 # Romotica Enterprise - Uzaktan Masaüstü Çözümü
 
 ## 1. Genel Bakış
-Romotica Enterprise, kurumsal ihtiyaçlara özel geliştirilmiş, yüksek güvenlikli ve ölçeklenebilir bir uzaktan masaüstü çözümüdür. Klasik IP/Port gereksinimlerini ortadan kaldırarak, sadece ID ve şifre ile internet üzerinden otomatik bağlantı sağlar.
+Romotica Enterprise, kurumsal ihtiyaçlara özel geliştirilmiş, yüksek güvenlikli ve ölçeklenebilir bir uzaktan masaüstü çözümüdür.  
+Kurumsal kullanıma özel bu sürüm, güvenlik protokolleri ve sistem optimizasyonlarıyla entegre edilmiştir.
 
+İşletmeler için hazır: Gelişmiş güvenlik ve yüksek performans bir arada!
 ---
 
 ## 2. Temel Özellikler
@@ -85,17 +87,18 @@ Romotica Enterprise, kurumsal ihtiyaçlara özel geliştirilmiş, yüksek güven
 ---
 
 ## 8. Lisans ve İletişim
-- **Lisans**: GNU GENERAL PUBLIC LICENSE
+- **Lisans**: Ticari Patentli Ürün.
 - **Geliştirici**: AISOROBOTICS
 - **Destek**: development@aisorobotics.com
 
 ---
 
-✨ **Katkı ve Destek**  
-Sorularınız için iletişim bilgilerimizi kullanabilirsiniz.
+✨ **Ticari Lisans Uyarısı**  
 
-**Not**: Bu sürüm, ticari kullanım için optimize edilmiştir. Ek güvenlik önlemleri otomatik uygulanır.
-
+**© Ticari patentli ürün. İzinsiz paylaşım ve kullanım yasaktır.**: 
+Bu yazılım ticari amaçlı olup özel patentle korunmaktadır. İzinsiz kopyalanması, çoğaltılması, dağıtılması veya değiştirilmesi yasaktır. Tüm hakları saklıdır.
+Tescilli ticari yazılımdır. Lisanssız kullanım ve reverse engineering işlemleri 5846 sayılı Fikir ve Sanat Eserleri Kanunu'na göre yasal işleme tabidir.
+Lisans anlaşmasını kabul etmeden kullanımı yasaktır. İhlaller hukuki yaptırımla sonuçlanır.
 ---
 
 ## İndirme Bağlantısı:
