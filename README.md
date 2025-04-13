@@ -88,8 +88,8 @@ Kurumsal kullanıma özel bu sürüm, güvenlik protokolleri ve sistem optimizas
 
 ## 8. Lisans ve İletişim
 - **Lisans**: Ticari Patentli Ürün.
-- **Geliştirici**: AISOROBOTICS
-- **Destek**: development@aisorobotics.com
+- **Geliştirici**: Romotica Enterprise Corp.
+- **Destek**: development@romotica.com
 
 ---
 
