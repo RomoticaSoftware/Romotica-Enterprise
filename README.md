@@ -1,7 +1,7 @@
 
 # Romotica Enterprise - Uzaktan Masaüstü Çözümü
 
-![Romotica Logo](https://via.placeholder.com/150x50?text=Romotica+Enterprise)
+![Romotica Logo](https://r.resimlink.com/op71PeMxt.png/150x50?text=Romotica+Enterprise)
 
 **Tamamen otomatik bağlantılı, güvenli ve yüksek performanslı uzaktan masaüstü yönetim yazılımı**
 
